@@ -2,7 +2,7 @@ import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { useState } from "react";
 import { Spin, message } from "antd";
 
-export function Connect() {
+const Connect = () => {
   const { address, isConnected } = useAccount();
   const { connect, connectors, isLoading, pendingConnector } = useConnect();
   const { disconnect } = useDisconnect();
@@ -77,6 +77,6 @@ export function Connect() {
       {/* {error && <div>{error.message}</div>} */}
     </div>
   );
-}
+};
 
 export default Connect;
