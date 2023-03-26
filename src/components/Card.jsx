@@ -112,10 +112,15 @@ const Card = ({ cardNumber, width, height }) => {
     DK,
     B,
   ];
-  console.log(width);
   return (
     <div>
-      <img alt="card" src={cardMap[cardNumber]} width={width} height={height} />
+      <img
+        className="shadow-md shadow-black hover:scale-105 rounded-2xl"
+        alt="card"
+        src={cardMap[cardNumber]}
+        width={width}
+        height={height}
+      />
     </div>
   );
 };
