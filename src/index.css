@@ -22,7 +22,7 @@ code {
   border-image: url("./images/wood.png") 60 30;
 }
 
-.container {
+.myContainer {
   height: 300px;
   width: 600px;
   top: 60px;
@@ -37,15 +37,13 @@ code {
   width: 200px;
   min-width: 200px;
   border-radius: 10px;
-  /* box-shadow: -1rem 0 3rem #000; */
-/*   margin-left: -50px; */
   transition: 0.4s ease-out;
   position: relative;
   left: 0px;
 }
 
 .card:not(:first-child) {
-    margin-left: -70px;
+  margin-left: -70px;
 }
 
 .card:hover {
@@ -65,4 +63,17 @@ code {
   position: absolute;
   left: 20px;
   top: 15px;
+}
+
+body::-webkit-scrollbar {
+  width: 12px;
+}
+
+body::-webkit-scrollbar-track {
+  background: black;
+}
+
+body::-webkit-scrollbar-thumb {
+  border-radius: 20px;
+  background-color: #bc4749;
 }

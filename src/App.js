@@ -1,3 +1,4 @@
+// import "bootstrap/dist/css/bootstrap.min.css";
 import { configureChains, createClient, WagmiConfig } from "wagmi";
 import { polygonMumbai } from "@wagmi/chains";
 import { publicProvider } from "wagmi/providers/public";
@@ -45,10 +46,12 @@ const client = createClient({
 function App() {
   return (
     <WagmiConfig client={client}>
-      <div className="">
+      <div className="bg-black">
         <Connect />
-        <Header />
-        <Body />
+        <div className="max-w-7xl mx-auto">
+          <Header />
+          <Body />
+        </div>
       </div>
     </WagmiConfig>
   );
