@@ -1,4 +1,3 @@
-// import "bootstrap/dist/css/bootstrap.min.css";
 import { configureChains, createClient, WagmiConfig } from "wagmi";
 import { polygonMumbai } from "@wagmi/chains";
 import { publicProvider } from "wagmi/providers/public";

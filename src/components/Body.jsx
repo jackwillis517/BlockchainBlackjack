@@ -5,92 +5,391 @@ import { contractAddress } from "../Contract";
 import { contractAbi } from "../Contract";
 import { useEffect, useState } from "react";
 import { useDebounce } from "use-debounce";
-import { Spin, message } from "antd";
+import { Spin, message, notification } from "antd";
 import {
-  useAccount,
-  usePrepareContractWrite,
-  useContractWrite,
-  useWaitForTransaction,
+  // usePrepareSendTransaction,
+  // useSendTransaction,
+  useSigner,
+  useContract,
 } from "wagmi";
+import { FormatTypes } from "ethers/lib/utils.js";
+import { Interface } from "ethers/lib/utils.js";
 
 const Body = () => {
-  useEffect(() => {
-    testAdd();
-  }, []);
+  // Converts human readable abi to a json abi
+  const iface = new Interface(contractAbi);
+  const contractAbiJson = iface.format(FormatTypes.json);
 
   //-------------------------------State Variables-------------------------------//
-  // State Variables: User Address & Antd Messages
-  const { address } = useAccount();
+  // State Variables: Antd Messages
   const [messageApi, contextHolder] = message.useMessage();
 
   // State Variables: Add Player
   const [bet, setBet] = useState("");
   const debouncedBet = useDebounce(bet, 500);
 
-  //-------------------------------Contract Interaction-------------------------------//
-  // Contract Interaction: Add Player //
-  // Prepare Contract Write: Add Player
-  const {
-    config: addPlayerConfig,
-    error: prepareAddPlayerError,
-    isError: isPrepareAddPlayerError,
-  } = usePrepareContractWrite({
-    address: contractAddress,
-    abi: contractAbi,
-    chainId: 80001,
-    functionName: "addPlayer",
-    overrides: {
-      gasLimit: 21000,
-      from: address,
-      value: parseInt(debouncedBet),
-    },
+  // State Variables: Loading
+  const [loadingAddPlayer, setLoadingAddPlayer] = useState(false);
+  const [loadingHit, setLoadingHit] = useState(false);
+  const [loadingStand, setLoadingStand] = useState(false);
+
+  // State Variables: Hands of Cards
+  const [playersHand, setPlayersHand] = useState("");
+  const [dealersHand, setDealersHand] = useState("");
+
+  // Effect: Update Cards on Frontend on Reload
+  useEffect(() => {
+    getDealersHand();
+    getPlayersHand();
+    updatePlayersCards();
+    updateDealersCards();
   });
-  // Contract Write: Add Player
-  const {
-    data: addPlayerData,
-    error: addPlayerError,
-    isError: isAddPlayerError,
-    write: addPlayer,
-  } = useContractWrite(addPlayerConfig);
-  const { isLoading: isAddPlayerLoading, isSuccess: isAddPlayerSuccess } =
-    useWaitForTransaction({
-      hash: addPlayerData?.hash,
-    });
-  // Error Handling: Add Player
-  if (isPrepareAddPlayerError || isAddPlayerError) {
-    messageApi.open({
-      type: "error",
-      content: "Player Wasn't Added",
-    });
-    console.log(`Players Bet: ${bet}`);
-    console.log(`Contract Prepare Write Error: ${prepareAddPlayerError}`);
-    console.log(`Contract Write Error: ${addPlayerError}`);
-  } else if (isAddPlayerSuccess) {
-    messageApi.open({ type: "success", content: "Player Added!" });
-    console.log(`Players Bet: ${bet}`);
-  }
+
+  //-------------------------------Contract Interaction-------------------------------//
+  const { data: signer } = useSigner();
+  const blackjackContract = useContract({
+    address: contractAddress,
+    abi: contractAbiJson,
+    signerOrProvider: signer,
+  });
+
   // Contract Interaction: Get Contract Balance //
+  // const getContractBalance = async () => {
+  //   if (!blackjackContract) {
+  //     messageApi.open({
+  //       type: "warning",
+  //       content: "Please connect to a wallet!",
+  //       duration: 6,
+  //     });
+  //     return;
+  //   }
+
+  //   try {
+  //     const balance = await blackjackContract.functions
+  //       .getContractBalance()
+  //       .catch((error) => {
+  //         messageApi.open({
+  //           type: "error",
+  //           content: "Oops that didn't work :( => (Check wallet connection)",
+  //           duration: 6,
+  //         });
+  //         console.log(error.message);
+  //       });
+
+  //     console.log(parseInt(balance));
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
+
+  // Contract Interaction: Get Dealers Hand //
+  const getDealersHand = async () => {
+    if (!blackjackContract) {
+      messageApi.open({
+        type: "warning",
+        content: "Please connect to a wallet!",
+      });
+      return;
+    }
+
+    try {
+      const dealersHand = await blackjackContract.functions.getDealersHand();
+      setDealersHand(dealersHand.toString());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Contract Interaction: Get Players Hand //
+  const getPlayersHand = async () => {
+    if (!blackjackContract) {
+      messageApi.open({
+        type: "warning",
+        content: "Please connect to a wallet!",
+        duration: 6,
+      });
+      return;
+    }
+
+    try {
+      const playersHand = await blackjackContract.functions.getPlayersHand();
+      setPlayersHand(playersHand.toString());
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Contract Interaction: Get Current Player //
+  // const getCurrentPlayer = async () => {
+  //   if (!blackjackContract) {
+  //     messageApi.open({
+  //       type: "warning",
+  //       content: "Please connect to a wallet!",
+  //       duration: 6,
+  //     });
+  //     return;
+  //   }
+
+  //   try {
+  //     const address = await blackjackContract.functions
+  //       .getCurrentPlayer()
+  //       .catch((error) => {
+  //         messageApi.open({
+  //           type: "error",
+  //           content: "Oops that didn't work :( => (Check wallet connection)",
+  //           duration: 6,
+  //         });
+  //         console.log(error.message);
+  //       });
+
+  //     console.log(address.toString());
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
+
+  // Contract Interaction: Add Player //
+  const addPlayer = async () => {
+    if (!blackjackContract) {
+      messageApi.open({
+        type: "warning",
+        content: "Please connect to a wallet!",
+        duration: 6,
+      });
+      setLoadingAddPlayer(false);
+      return;
+    }
+
+    try {
+      const tx = await blackjackContract.functions
+        .addPlayer({ value: parseInt(debouncedBet) })
+        .catch((error) => {
+          messageApi.open({
+            type: "error",
+            content: "Transaction Reverted",
+            duration: 6,
+          });
+          setLoadingAddPlayer(false);
+          console.log(error.message);
+        });
+
+      await tx.wait();
+      messageApi.open({
+        type: "success",
+        content: "Player Added!",
+        duration: 6,
+      });
+      setTimeout(5000);
+      pendingNotifcation();
+    } catch (error) {
+      console.error(error);
+    }
+  };
   // Contract Interaction: Stand //
-  // Contract Interaction: Get Current Players Bet //
-  // Contract Interaction: Get Dealers Hand & Get Players Hand //
+  const stand = async () => {
+    if (!blackjackContract) {
+      messageApi.open({
+        type: "warning",
+        content: "Please connect to a wallet!",
+        duration: 6,
+      });
+      setLoadingStand(false);
+      return;
+    }
+
+    try {
+      const tx = await blackjackContract.functions.stand().catch((error) => {
+        messageApi.open({
+          type: "error",
+          content: "Transaction Reverted",
+          duration: 6,
+        });
+        setLoadingStand(false);
+        console.log(error.message);
+      });
+
+      await tx.wait();
+      messageApi.open({
+        type: "success",
+        content: "Player Stood!",
+        duration: 6,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
   // Contract Interaction: Hit //
+  const hit = async () => {
+    if (!blackjackContract) {
+      messageApi.open({
+        type: "warning",
+        content: "Please connect to a wallet!",
+        duration: 6,
+      });
+      setLoadingHit(false);
+      return;
+    }
 
-  // Transaction: Fund Contract 0.5 MATIC //
+    try {
+      const tx = await blackjackContract.functions.hit().catch((error) => {
+        messageApi.open({
+          type: "error",
+          content: "Transaction Reverted",
+          duration: 6,
+        });
+        setLoadingHit(false);
+        console.log(error.message);
+      });
 
-  const testAdd = () => {
-    var testArr = [9, 3, 19, 21, 11, 49, 50, 44, 28];
+      await tx.wait();
+      messageApi.open({
+        type: "success",
+        content: "Player Hit!",
+        duration: 6,
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  // Transaction: Fund Contract MATIC //
+  // const { config: sendFundsConfig } = usePrepareSendTransaction({
+  //   request: {
+  //     to: contractAddress,
+  //     value: 10000,
+  //   },
+  // });
+  // const { sendTransaction: sendFunds } = useSendTransaction(sendFundsConfig);
+
+  //-------------------------------Event Callback Functions-------------------------------//
+  const updatePlayersCards = () => {
+    var cards = playersHand.split(",");
+    if (playersHand === "") {
+      cards = [52, 52];
+    }
+
     var playerCardContainer = document.getElementById("playerCardContainer");
-    for (var i = 0; i < testArr.length; i++) {
+    while (playerCardContainer.hasChildNodes()) {
+      playerCardContainer.removeChild(playerCardContainer.firstChild);
+    }
+    for (var i = 0; i < cards.length; i++) {
       var newDiv = document.createElement("div");
       newDiv.className = "card shadow-lg shadow-black";
       ReactDOM.render(
-        <Card cardNumber={testArr[i]} width={200} height={200} />,
+        <Card cardNumber={cards[i]} width={200} height={200} />,
         newDiv
       );
       playerCardContainer.appendChild(newDiv);
-      console.log(newDiv.innerHTML);
     }
   };
+
+  const updateDealersCards = () => {
+    var cards = dealersHand.split(",");
+    if (dealersHand === "") {
+      cards = [52, 52, 52];
+    }
+
+    if (cards.length === 2) {
+      cards.push(52);
+    }
+
+    var dealerCardContainer = document.getElementById("dealerCardContainer");
+    while (dealerCardContainer.hasChildNodes()) {
+      dealerCardContainer.removeChild(dealerCardContainer.firstChild);
+    }
+    for (var i = 0; i < cards.length; i++) {
+      var newDiv = document.createElement("div");
+      newDiv.className =
+        "place-self-center p-1 border-8 border-theme-red rounded-2xl";
+      ReactDOM.render(
+        <Card cardNumber={cards[i]} width={230} height={230} />,
+        newDiv
+      );
+      dealerCardContainer.appendChild(newDiv);
+    }
+  };
+
+  const winnerNotification = (playerTot, dealerTot, winningsTot) => {
+    notification.destroy();
+    notification.success({
+      message: `You Have Won ${winningsTot} Wei!!!`,
+      description: `Player Total: ${playerTot}\n   Dealer Total: ${dealerTot}`,
+      duration: 9,
+    });
+  };
+
+  const loserNotification = (playerTot, dealerTot) => {
+    notification.destroy();
+    notification.warning({
+      message: "Sorry, the odds weren't in your favor...this time",
+      description: `Player Total: ${playerTot}\n   Dealer Total: ${dealerTot}`,
+      duration: 9,
+    });
+  };
+
+  const tieNotification = (playerTot, dealerTot, winningTot) => {
+    notification.destroy();
+    notification.info({
+      message: `You have tied with the dealer & your bet of ${winningTot} Wei`,
+      description: `Player Total: ${playerTot}\n   Dealer Total: ${dealerTot}`,
+      duration: 9,
+    });
+  };
+
+  const pendingNotifcation = () => {
+    notification.destroy();
+    notification.info({
+      message: "Your being added to the smart contract, one sec...",
+      description:
+        "Pushing your transaction to the Mumbai testnet. Querying Chainlink oracles for random numbers. Good luck user.",
+      duration: 11,
+    });
+  };
+
+  //-------------------------------Event Listener-------------------------------//
+  try {
+    blackjackContract.on("RequestFulfilled", () => {
+      getPlayersHand();
+      getDealersHand();
+      updatePlayersCards();
+      updateDealersCards();
+      setLoadingAddPlayer(false);
+    });
+  } catch (error) {
+    console.error(error);
+  }
+
+  try {
+    blackjackContract.on("Hit", () => {
+      getPlayersHand();
+      updatePlayersCards();
+      setLoadingHit(false);
+    });
+  } catch (error) {
+    console.error(error);
+  }
+
+  try {
+    blackjackContract.on("Stand", (playerTotal, dealerTotal, winnings) => {
+      const playerCount = parseInt(playerTotal);
+      const dealerCount = parseInt(dealerTotal);
+      const winningCount = parseInt(winnings);
+      getDealersHand();
+      getPlayersHand();
+      updateDealersCards();
+      updatePlayersCards();
+      setLoadingStand(false);
+      if (winningCount > 0) {
+        winnerNotification(playerCount, dealerCount, winningCount);
+      } else if (winningCount === bet) {
+        tieNotification(playerCount, dealerCount, winningCount);
+      } else {
+        loserNotification(playerCount, dealerCount);
+      }
+    });
+  } catch (error) {
+    console.error(error);
+  }
 
   return (
     <div className="bg-theme-dark-green p-5 grid grid-cols-1 grid-rows-1 gap-10 wood-border">
@@ -99,18 +398,60 @@ const Body = () => {
         <h1>Dealers Hand</h1>
       </div>
 
+      {/* <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => sendFunds?.()}
+      >
+        Send Funds
+      </button>
+
+      <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => getContractBalance?.()}
+      >
+        Get Contract Balance
+      </button>
+
+      <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => getDealersHand?.()}
+      >
+        Get Dealers Hand
+      </button>
+
+      <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => getPlayersHand?.()}
+      >
+        Get Players Hand
+      </button>
+
+      <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => getCurrentPlayer?.()}
+      >
+        Get Current Player
+      </button>
+
+      <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => updatePlayersCards?.()}
+      >
+        Update Player Cards
+      </button>
+
+      <button
+        className="bg-theme-red rounded-2xl text-white"
+        onClick={() => updateDealersCards?.()}
+      >
+        Update Dealer Cards
+      </button> */}
+
       {/*-------------------------------Dealers Cards Section-------------------------------*/}
-      <div className="p-0 md:p-14 md:pt-5 flex md:flex-row flex-col gap-5 justify-center ">
-        <div className="place-self-center p-1 border-8 border-theme-red rounded-2xl shadow-md hover:scale-105 hover:ease-in-out">
-          <Card cardNumber={1} width={230} height={230} />
-        </div>
-        <div className="place-self-center p-1 border-8 border-theme-red rounded-2xl">
-          <Card cardNumber={32} width={230} height={230} />
-        </div>
-        <div className="place-self-center p-1 border-8 border-theme-red rounded-2xl">
-          <Card cardNumber={52} width={230} height={230} />
-        </div>
-      </div>
+      <div
+        className="p-0 md:p-14 md:pt-5 flex md:flex-row flex-col gap-5 justify-center"
+        id="dealerCardContainer"
+      ></div>
 
       <div className="text-3xl text-white place-self-center mt-10">
         <h1>Make a Bet</h1>
@@ -122,11 +463,13 @@ const Body = () => {
           <div className="p-1 place-self-center">
             <div className="m-3 flex justify-center">
               <button
-                disabled={!addPlayer || isAddPlayerLoading}
-                onClick={() => addPlayer?.()}
+                onClick={() => {
+                  setLoadingAddPlayer(true);
+                  addPlayer?.();
+                }}
                 className="bg-theme-red text-white text-2xl rounded-xl mt-4 mb-2 p-2 px-3 shadow-md shadow-black hover:bg-[#7c2e2e] hover:ring ring-offset-4 ring-offset-white hover:scale-90"
               >
-                {isAddPlayerLoading ? <Spin size="medium" /> : "Place Your Bet"}
+                {loadingAddPlayer ? <Spin size="medium" /> : "Place Your Bet"}
               </button>
             </div>
             <div className="m-3">
@@ -142,14 +485,26 @@ const Body = () => {
           </div>
         </div>
         <div className="flex md:flex-row flex-col md:gap-10 gap-3 justify-center my-5">
-          <div className="place-self-center">
+          <div
+            onClick={() => {
+              setLoadingHit(true);
+              hit?.();
+            }}
+            className="place-self-center"
+          >
             <button className="bg-theme-red text-white text-2xl rounded-xl mt-4 mb-2 p-2 px-3 shadow-md shadow-black hover:bg-[#7c2e2e] hover:ring ring-offset-4 ring-offset-white hover:scale-90">
-              Hit
+              {loadingHit ? <Spin size="medium" /> : "Hit"}
             </button>
           </div>
           <div className="place-self-center">
-            <button className="bg-theme-red text-white text-2xl rounded-xl mt-4 mb-2 p-2 px-3 shadow-md shadow-black hover:bg-[#7c2e2e] hover:ring ring-offset-4 ring-offset-white hover:scale-90">
-              Stand
+            <button
+              onClick={() => {
+                setLoadingStand(true);
+                stand?.();
+              }}
+              className="bg-theme-red text-white text-2xl rounded-xl mt-4 mb-2 p-2 px-3 shadow-md shadow-black hover:bg-[#7c2e2e] hover:ring ring-offset-4 ring-offset-white hover:scale-90"
+            >
+              {loadingStand ? <Spin size="medium" /> : "Stand"}
             </button>
           </div>
         </div>

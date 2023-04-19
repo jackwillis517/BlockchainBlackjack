@@ -3,8 +3,24 @@ import "../index.css";
 const Header = () => {
   return (
     <div className="bg-theme-dark-green text-white text-center py-10 px-5 wood-border">
-      <div className="mb-6">
-        <h1 className="text-4xl">Blockchain Blackjack</h1>
+      <div className="mb-6 flex flex-col gap-5">
+        <div>
+          <h1 className="text-4xl">Blockchain Blackjack</h1>
+        </div>
+        <div>
+          <a
+            href="https://mumbaifaucet.com/"
+            className="bg-theme-red rounded-xl mt-4 mb-2 p-2 hover:bg-[#7c2e2e] hover:scale-90"
+          >
+            Get Matic
+          </a>
+          <a
+            href="https://jackwillis.netlify.app/"
+            className="bg-theme-red rounded-xl mt-4 mb-2 ml-5 p-2 hover:bg-[#7c2e2e] hover:scale-90"
+          >
+            My Portfolio
+          </a>
+        </div>
       </div>
       <div>
         <h1 className="text-2xl mb-4">
